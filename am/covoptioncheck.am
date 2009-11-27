@@ -1,0 +1,10 @@
+if CONTEXTKIT_COVERAGE
+covoptioncheck: # ok, we have coverage
+else
+covoptioncheck:
+	@echo "The project has not been configured for coverage, check that you have gcov, lcov."
+	@echo "Of course, do not use --disable-coverage"
+	@exit 1
+endif
+
+.PHONY: covoptioncheck

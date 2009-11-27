@@ -1,0 +1,63 @@
+# run every binary
+TESTS = $(check_PROGRAMS)
+
+if CONTEXTKIT_COVERAGE
+COV_CXXFLAGS=-ftest-coverage -fprofile-arcs -fno-elide-constructors
+COV_LIBS=-lgcov
+else
+COV_CXXFLAGS=
+COV_LIBS=
+endif
+
+# include header files from source as a last resource and use QTest, coverage
+AM_CXXFLAGS += $(QtTest_CFLAGS) $(COV_CXXFLAGS) -I$(top_srcdir)/common
+
+AM_LDFLAGS += $(QtTest_LIBS) $(COV_LIBS)
+
+# We need to put $(FROM_SOURCE) into BUILT_SOURCES so that header
+# files are copied before they are needed.
+BUILT_SOURCES = $(FROM_SOURCE)
+
+# recompile every file %.cpp in FROM_SOURCE as src_%.o in the current
+# test directory (so the mock objects don't have to be ABI compatible)
+$(FROM_SOURCE): %: $(FROM_SOURCE_DIR)/%
+	ln -sf $< $@
+
+check_LIBRARIES = libsrc.a  # library built from files in the real source
+nodist_libsrc_a_SOURCES = $(FROM_SOURCE)
+LDADD += $(check_LIBRARIES) $(top_builddir)/common/libcommon.la # add it to the linking
+
+# tests should be always debuggable, can't use AM_CXXFLAGS, because
+# that is too early
+CXXFLAGS += -O0 -g
+
+covdircheck:
+	@if test "$(COVERAGE_FILES)" = "" ; then \
+		echo "The directory hasn't been configured for coverage, please add COVERAGE_FILES variable to Makefile.am"; \
+		exit 2; \
+	fi
+
+SELECTED_FOR_COVERAGE = $(patsubst %.cpp, '*/unit-tests/*/%.cpp', $(COVERAGE_FILES))
+coverage: covoptioncheck covdircheck check
+	@echo "building coverage"
+	mkdir -p coverage
+	lcov --directory . --capture --output-file coverage/all.cov
+	lcov --extract coverage/all.cov $(SELECTED_FOR_COVERAGE) --output-file coverage/selected.cov
+	lcov --extract coverage/all.cov '*/unit-tests/*/*.cpp' --output-file coverage/src.cov
+	genhtml -o coverage/ coverage/src.cov
+
+clean-local:
+	rm -rf coverage *.gcno *.gcda *.gcov $(FROM_SOURCE)
+
+# in maintainer mode, compile everything at make time, not at make check time
+all-am:
+	if test "$(USE_MAINTAINER_MODE)" = yes; then \
+		$(MAKE) $(AM_MAKEFLAGS) $(check_LIBRARIES) $(check_PROGRAMS); \
+	fi
+
+$(top_builddir)/common/libcommon.la:
+	$(MAKE) -C $(top_builddir)/common libcommon.la
+
+.PHONY: coverage covdircheck $(top_builddir)/common/libcommon.la
+
+include $(top_srcdir)/am/covoptioncheck.am
