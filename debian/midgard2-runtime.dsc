@@ -1,6 +1,6 @@
 Format: 1.0  
 Source: midgard2-runtime 
-Version: 9.03.99
+Version: 0.1
 Binary: midgard2-runtime
 Maintainer: Piotr Pokora <piotrek.pokora@gmail.com>  
 Architecture: any
