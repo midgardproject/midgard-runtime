@@ -1,5 +1,5 @@
 AC_PREREQ([2.61])
-AC_INIT([MidgardRuntime], [0.1~unreleased], [mdk@new-wild.com], MidgardRuntime)
+AC_INIT([MidgardRuntime], [0.1], [mdk@new-wild.com], MidgardRuntime)
 
 AC_CONFIG_SRCDIR([Makefile.am])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign dist-bzip2 tar-ustar 1.9])
