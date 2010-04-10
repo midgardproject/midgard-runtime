@@ -13,6 +13,8 @@ MainWindow::MainWindow()
     webView.show();
     setWindowTitle("Midgard runtime");
     boxDelayer.setSingleShot(true);
+
+    setWindowIcon(QIcon("midgard-icon.png"));
 }
 
 void MainWindow::onLoadFinished(bool success)
