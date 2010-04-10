@@ -20,6 +20,7 @@ switch-arch:
 build: build-stamp
 build-stamp: configure-stamp
 	dh_testdir
+	qmake
 	$(MAKE) pkgdatadir=/usr/share/midgard 
 	touch $@
 
