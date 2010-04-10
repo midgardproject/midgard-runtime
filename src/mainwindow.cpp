@@ -14,7 +14,7 @@ MainWindow::MainWindow()
     setWindowTitle("Midgard runtime");
     boxDelayer.setSingleShot(true);
 
-    setWindowIcon(QIcon("midgard-icon.png"));
+    setWindowIcon(QIcon(":/midgard2-icon.png"));
 }
 
 void MainWindow::onLoadFinished(bool success)
