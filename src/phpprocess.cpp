@@ -11,8 +11,8 @@ void PhpProcess::start()
     QStringList arguments;
     QStringList env;
 
-    arguments << "-b";
-    arguments << "127.0.0.1:9000";
+    arguments << "public/midgard-root.php";
+    arguments << "http";
 
     // Standard env
     env << ("MIDGARD_ENV_GLOBAL_CACHEDIR=" + baseDir.absoluteFilePath("cache"));
@@ -33,5 +33,5 @@ void PhpProcess::start()
     env << ("MIDGARD_ENV_REAL_NAME=" + realname);
 
     setEnvironment(env);
-    QProcess::start("php5-cgi", arguments);
+    QProcess::start("php5", arguments);
 }

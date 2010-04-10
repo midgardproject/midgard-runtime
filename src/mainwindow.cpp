@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "sconnect.h"
 #include <QMessageBox>
+#include <QNetworkCookieJar>
 
 MainWindow::MainWindow()
 {
@@ -9,7 +10,8 @@ MainWindow::MainWindow()
 
     setCentralWidget(&webView);
     resize(800, 480);
-    webView.load(QUrl("http://localhost:8000"));
+    webView.page()->networkAccessManager()->setCookieJar(new QNetworkCookieJar());
+    webView.load(QUrl("http://localhost:7070"));
     webView.show();
     setWindowTitle("Midgard runtime");
     boxDelayer.setSingleShot(true);

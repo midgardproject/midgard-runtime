@@ -1,7 +1,6 @@
 #include <QObject>
 #include <QProcess>
 #include <QDir>
-#include "serverprocess.h"
 #include "phpprocess.h"
 
 #ifndef RUNTIME_H
@@ -18,12 +17,10 @@ public:
 
 private:
     PhpProcess phpProcess;
-    ServerProcess serverProcess;
     bool goingDown;
     void analyzeProcessShutdown(int exitCode, QProcess::ExitStatus exitStatus, QString name);
 
 private slots:
-    void onServerProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
     void onPhpProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
 };
 
