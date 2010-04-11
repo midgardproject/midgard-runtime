@@ -1,0 +1,162 @@
+#!/usr/bin/env php5
+
+<?php
+
+require_once 'spyc.php';
+require_once 'sfYamlParser.php';
+
+$php_ini_contents = <<<EOF
+midgard.http=On
+midgard.engine=On
+midgard.configuration_file=midgard.conf
+midgard.superglobals_compat=On
+EOF;
+
+$midgard_conf_contents = <<<EOF
+[MidgardDir]
+#ShareDir=
+#VarDir=
+#BlobDir=
+#CacheDir=
+
+[MidgardDatabase]
+Type=SQLite
+Host=
+Name=midgard
+Username=midgard
+Password=midgard
+
+#DefaultLanguage=pl
+Loglevel=debug
+TableCreate=true
+TableUpdate=true
+EOF;
+
+// Check if we have param
+if ($argc <= 1) {
+    echo "Usage: midgard2-runtime-installer <BUNDLE PATH>\n";
+    exit(128);
+}
+
+// Check if exists...
+if (!file_exists($argv[1])) {
+    echo "Specified bundle does not exist.\n";
+    exit(128);
+} 
+
+// Copied from somewhere... hope it makes sense. 
+// But well, I'm not a PHP junkie...
+function recurse_copy($src, $dst) { 
+    $dir = opendir($src); 
+    @mkdir($dst); 
+    while(false !== ( $file = readdir($dir)) ) { 
+        if (( $file != '.' ) && ( $file != '..' )) { 
+            if ( is_dir($src . '/' . $file) ) { 
+                recurse_copy($src . '/' . $file,$dst . '/' . $file); 
+            } 
+            else { 
+                copy($src . '/' . $file,$dst . '/' . $file); 
+            } 
+        } 
+    } 
+    closedir($dir); 
+} 
+
+function create_random_key($amount) {
+    $keyset  = "abcdefghijklmABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    $randkey = "";
+    for ($i=0; $i<$amount; $i++)
+        $randkey .= substr($keyset, rand(0, strlen($keyset)-1), 1);
+
+    return $randkey;    
+}
+
+$bundle_directory = sys_get_temp_dir() . '/' . create_random_key(10) . '/';
+$bundle_manifest = $bundle_directory . "/" . "manifest.yml";
+$bundle_name = "unknown";
+$base_directory = getenv('HOME') . '/.midgard2/';
+$source_share_directory = "/usr/share/midgard2/";
+$components = array('midgardmvc_core', 'midgardmvc_helper_datamanager', 'midgardmvc_helper_xsspreventer', 'net_nemein_dasboard', 'org_openpsa_qbpager');
+
+// 1. Extracting the bundle
+echo "Extracting the bundle from zip\n";
+$bundle_phar = new PharData($argv[1]);
+$bundle_phar->extractTo($bundle_directory);
+
+// 2. Verify a bit...
+if (!file_exists($bundle_manifest)) {
+    echo "Not a valid bundle, the manifest.yml is missing [" . $bundle_manifest . "]\n";
+    exit(128);
+} 
+
+$yaml = new sfYamlParser();
+$data = $yaml->parse(file_get_contents($bundle_manifest));
+$bundle_name = $data['name'];
+$target_directory = $base_directory . '/' . $bundle_name . "/";
+$target_share_directory = $target_directory . "/share/";
+$target_views_directory = $target_share_directory . "/views/";
+$target_cache_directory = $target_directory . "/cache/";
+$target_schema_directory = $target_directory . "/share/schema/";
+echo "Installing bundle in: " . $target_directory . "\n";
+
+// 3. Create the directory
+if (!file_exists($target_directory))
+    mkdir($target_directory);
+
+// 4. Create the share
+if (!file_exists($target_share_directory))
+    mkdir($target_share_directory);
+
+// 5. Copy the bundled components...
+foreach ($components as $c) {
+    $source = $bundle_directory . $c;
+    $target = $target_directory . $c;
+    echo "Installing component: " . $c . "\n";
+    recurse_copy($source, $target);
+}
+
+// 6. Copy the shemas from components
+if (!file_exists($target_schema_directory))
+    mkdir($target_schema_directory);
+foreach ($components as $c) {
+    $source = $bundle_directory . $c . "/configuration"; // FIXME actually find .xml
+    $target = $target_schema_directory . $c;
+    if (file_exists($source))
+        recurse_copy($source, $target);
+}
+
+// 7. Copy the incoming MGD xml pieces
+echo "Installing common midgard data\n";
+copy($source_share_directory . "MidgardObjects.xml", $target_share_directory . "MidgardObjects.xml");
+copy($source_share_directory . "midgard_auth_types.xml", $target_share_directory . "midgard_auth_types.xml");
+copy($source_share_directory . "midgard_initial_database.xml", $target_share_directory . "midgard_initial_database.xml");
+
+// 8. Create the views
+if (!file_exists($target_views_directory))
+    mkdir($target_views_directory);
+
+// 9. Create the cache
+if (!file_exists($target_cache_directory))
+    mkdir($target_cache_directory);
+
+// 10. Create the php.ini
+echo "Bootstrapping internal php configuration\n";
+$f = fopen($target_directory . "php.ini", "w");
+fwrite($f, $php_ini_contents);
+fclose($f);
+
+// 11. Create the midgard.conf
+echo "Bootstrapping internal midgard configuration\n";
+$f = fopen($target_directory . "midgard.conf", "w");
+fwrite($f, $midgard_conf_contents);
+fclose($f);
+
+// 12. Copy TAL
+echo "Installing PHPTAL (TODO: via extra dist in bundle)\n";
+recurse_copy($bundle_directory . "PHPTAL", $target_directory . "PHPTAL");
+copy($bundle_directory . "PHPTAL.php", $target_directory . "PHPTAL.php");
+
+// 13. Prepare the database
+echo "Bootstrapping database (TODO: actually do this!)\n"
+
+?>

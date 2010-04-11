@@ -11,7 +11,7 @@ MainWindow::MainWindow()
     setCentralWidget(&webView);
     resize(800, 480);
     webView.page()->networkAccessManager()->setCookieJar(new QNetworkCookieJar());
-    webView.load(QUrl("http://localhost:7070"));
+    webView.load(QUrl("http://localhost:8080"));
     webView.show();
     setWindowTitle("Midgard runtime");
     boxDelayer.setSingleShot(true);

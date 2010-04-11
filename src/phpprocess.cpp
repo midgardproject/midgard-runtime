@@ -11,9 +11,10 @@ void PhpProcess::start()
     QStringList arguments;
     QStringList env;
 
-    arguments << "public/midgard-root.php";
-    arguments << "http";
-
+    arguments << "-c";
+    arguments << "php.ini";
+    arguments << "midgardmvc_core/httpd/midcom-root-mjolnir-appserv.php";
+    
     // Standard env
     env << ("MIDGARD_ENV_GLOBAL_CACHEDIR=" + baseDir.absoluteFilePath("cache"));
     env << ("MIDGARD_ENV_GLOBAL_SHAREDIR=" + baseDir.absoluteFilePath("share"));
