@@ -4,66 +4,70 @@
 export DH_COMPAT=4
 export DH_OPTIONS
 
+DEB_HOST_GNU_TYPE ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 DEB_BUILD_ARCH   ?= $(shell dpkg-architecture -qDEB_BUILD_ARCH)
+
+deb_section=
+
+CONFIGURE_FLAGS=\
+	--prefix=/usr\
+
+switch-arch:
+	 sed -e 's/Architecture: any/Architecture: ${DEB_BUILD_ARCH}/g' debian/control > control.dummy
+	 mv control.dummy debian/control
 
 build: build-stamp
 build-stamp: configure-stamp
 	dh_testdir
-	#$(MAKE)
+	qmake
+	$(MAKE) pkgdatadir=/usr/share/midgard 
 	touch $@
 
 configure: configure-stamp
 configure-stamp:
 	dh_testdir
+	cp -f /usr/share/misc/config.guess .
+	cp -f /usr/share/misc/config.sub .
+	./configure ${CONFIGURE_FLAGS}
 	touch $@
 
 clean:
-	rm -rf build.stamp configure-stamp
-	rm -rf debian/tmp	
-	rm -rf debian/midgard
-	rm -rf debian/midgard-data
+	dh_testdir
+	-$(MAKE) distclean
+	rm -f build-stamp configure-stamp
+	dh_clean
 
 install: DH_OPTIONS=
 install: build
 	dh_testdir
 	dh_testroot
+	dh_clean
 	dh_installdirs
-	cp -r build-stamp debian/midgard2-mvc-core/usr/share/midgardmvc_core/ 
-	cp -r config debian/midgard2-mvc-core/usr/share/midgardmvc_core/  
-	cp exceptionhandler.php debian/midgard2-mvc-core/usr/share/midgardmvc_core/ 
-	cp -r helpers  debian/midgard2-mvc-core/usr/share/midgardmvc_core/
-	cp interface.php  debian/midgard2-mvc-core/usr/share/midgardmvc_core/
-	cp manifest.yml  debian/midgard2-mvc-core/usr/share/midgardmvc_core/
-	cp -r services  debian/midgard2-mvc-core/usr/share/midgardmvc_core/
-	cp -r templates debian/midgard2-mvc-core/usr/share/midgardmvc_core/
-	cp -r component  debian/midgard2-mvc-core/usr/share/midgardmvc_core/  
-	cp -r configuration  debian/midgard2-mvc-core/usr/share/midgardmvc_core/
-	cp -r controllers      debian/midgard2-mvc-core/usr/share/midgardmvc_core/
-	cp -r documentation  debian/midgard2-mvc-core/usr/share/midgardmvc_core/
-	cp framework.php         debian/midgard2-mvc-core/usr/share/midgardmvc_core/
-	cp -r httpd    debian/midgard2-mvc-core/usr/share/midgardmvc_core/
-	cp -r locale         debian/midgard2-mvc-core/usr/share/midgardmvc_core/
-	cp -r python        debian/midgard2-mvc-core/usr/share/midgardmvc_core/
-	cp -r static    debian/midgard2-mvc-core/usr/share/midgardmvc_core/
-	cp -r tests debian/midgard2-mvc-core/usr/share/midgardmvc_core/
-	cp ../pake*.tgz debian/midgard2-mvc-installer/usr/share/
-	cp ../Appserver*.tgz debian/midgard2-mvc-installer/usr/share/
-
-binary-indep: 
-	DH_OPTIONS=-i
+	$(MAKE) install \
+		INSTALL='/usr/bin/install -c -o root -g root' \
+		DESTDIR=`pwd`/debian/tmp 
+	dh_install --sourcedir=debian/tmp
+	
+binary-indep: DH_OPTIONS=-i
+binary-indep:
+# nothing to do
 
 binary-indep: DH_OPTIONS=-a
-binary-arch: install
+binary-arch:install
 	dh_testdir
 	dh_testroot
+	dh_installdocs 
 	dh_installchangelogs
-	dh_installdocs
+	dh_makeshlibs -V
+	dh_shlibdeps -s
+	dh_strip
 	dh_compress
 	dh_fixperms
-	dh_installdeb
+	dh_installdeb	
 	dh_gencontrol
 	dh_md5sums
 	dh_builddeb
 
-binary:	binary-indep binary-arch
-.PHONY: binary binary-arch binary-indep install configure build clean
+binary:	switch-arch binary-indep binary-arch
+.PHONY: switch-arch binary binary-arch binary-indep install clean configure build clean
