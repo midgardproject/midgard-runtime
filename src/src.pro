@@ -3,3 +3,7 @@ SOURCES = main.cpp mainwindow.cpp phpprocess.cpp runtime.cpp runtimeprocess.cpp 
 HEADERS = mainwindow.h phpprocess.h runtime.h runtimeprocess.h sconnect.h
 QT += webkit network
 RESOURCES = midgard2-runtime.qrc
+
+bin.path = /usr/bin/
+bin.files = midgard2-runtime
+INSTALLS += bin
