@@ -83,7 +83,7 @@ $bundle_manifest = $bundle_directory . "/" . "manifest.yml";
 $bundle_name = "unknown";
 $base_directory = getenv('HOME') . '/.midgard2/';
 $source_share_directory = "/usr/share/midgard2/";
-$components = array('midgardmvc_core', 'midgardmvc_helper_datamanager', 'midgardmvc_helper_xsspreventer', 'net_nemein_dasboard', 'org_openpsa_qbpager');
+$components = array('midgardmvc_core', 'midgardmvc_helper_forms', 'midgardmvc_helper_xsspreventer', 'midgardmvc_admin_asgard');
 
 // 1. Extracting the bundle
 echo "Extracting the bundle from zip\n";
