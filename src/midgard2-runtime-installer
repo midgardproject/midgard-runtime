@@ -2,8 +2,10 @@
 
 <?php
 
-require_once 'spyc.php';
-require_once 'sfYamlParser.php';
+if (!extension_loaded("yaml"))
+{
+	die ("YAML extension required! \n");
+}
 
 $php_ini_contents = <<<EOF
 midgard.http=On
@@ -33,25 +35,29 @@ TableUpdate=true
 EOF;
 
 // Check if we have param
-if ($argc <= 1) {
-    echo "Usage: midgard2-runtime-installer <BUNDLE PATH>\n";
-    exit(128);
+if ($argc <= 1) 
+{
+    die ("Usage: midgard2-runtime-installer <BUNDLE PATH>\n");
 }
 
 // Check if exists...
-if (!file_exists($argv[1])) {
-    echo "Specified bundle does not exist.\n";
-    exit(128);
+if (!file_exists($argv[1])) 
+{
+    die ("Specified bundle does not exist.\n");
 } 
 
 // Copied from somewhere... hope it makes sense. 
 // But well, I'm not a PHP junkie...
-function recurse_copy($src, $dst) { 
+function recurse_copy($src, $dst) 
+{ 
     $dir = opendir($src); 
     @mkdir($dst); 
-    while(false !== ( $file = readdir($dir)) ) { 
-        if (( $file != '.' ) && ( $file != '..' )) { 
-            if ( is_dir($src . '/' . $file) ) { 
+	while(false !== ( $file = readdir($dir)) ) 
+	{ 
+		if (( $file != '.' ) && ( $file != '..' )) 
+		{ 
+			if ( is_dir($src . '/' . $file) ) 
+			{ 
                 recurse_copy($src . '/' . $file,$dst . '/' . $file); 
             } 
             else { 
@@ -62,7 +68,8 @@ function recurse_copy($src, $dst) {
     closedir($dir); 
 } 
 
-function create_random_key($amount) {
+function create_random_key($amount) 
+{
     $keyset  = "abcdefghijklmABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     $randkey = "";
     for ($i=0; $i<$amount; $i++)
@@ -89,8 +96,7 @@ if (!file_exists($bundle_manifest)) {
     exit(128);
 } 
 
-$yaml = new sfYamlParser();
-$data = $yaml->parse(file_get_contents($bundle_manifest));
+$data = yaml_parse_file ($bundle_manifest);
 $bundle_name = $data['name'];
 $target_directory = $base_directory . '/' . $bundle_name . "/";
 $target_share_directory = $target_directory . "/share/";
@@ -105,10 +111,13 @@ if (!file_exists($target_directory))
 
 // 4. Create the share
 if (!file_exists($target_share_directory))
-    mkdir($target_share_directory);
+{
+	mkdir($target_share_directory);
+}
 
 // 5. Copy the bundled components...
-foreach ($components as $c) {
+foreach ($components as $c) 
+{
     $source = $bundle_directory . $c;
     $target = $target_directory . $c;
     echo "Installing component: " . $c . "\n";
@@ -117,27 +126,36 @@ foreach ($components as $c) {
 
 // 6. Copy the shemas from components
 if (!file_exists($target_schema_directory))
-    mkdir($target_schema_directory);
-foreach ($components as $c) {
+{
+	mkdir($target_schema_directory);
+}
+
+foreach ($components as $c) 
+{
     $source = $bundle_directory . $c . "/configuration"; // FIXME actually find .xml
     $target = $target_schema_directory . $c;
-    if (file_exists($source))
-        recurse_copy($source, $target);
+	if (file_exists($source))
+	{
+		recurse_copy($source, $target);
+	}
 }
 
 // 7. Copy the incoming MGD xml pieces
 echo "Installing common midgard data\n";
 copy($source_share_directory . "MidgardObjects.xml", $target_share_directory . "MidgardObjects.xml");
 copy($source_share_directory . "midgard_auth_types.xml", $target_share_directory . "midgard_auth_types.xml");
-copy($source_share_directory . "midgard_initial_database.xml", $target_share_directory . "midgard_initial_database.xml");
 
 // 8. Create the views
 if (!file_exists($target_views_directory))
-    mkdir($target_views_directory);
+{
+	mkdir($target_views_directory);
+}
 
 // 9. Create the cache
-if (!file_exists($target_cache_directory))
-    mkdir($target_cache_directory);
+if (!file_exists($target_cache_directory)) 
+{
+	mkdir($target_cache_directory);
+}
 
 // 10. Create the php.ini
 echo "Bootstrapping internal php configuration\n";
