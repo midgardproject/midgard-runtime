@@ -28,8 +28,9 @@ install:
 	dh_installdirs
 	qmake DESTDIR=${PWD}/debian/midgard2-runtime/usr/bin
 	$(MAKE) 
-	$(MAKE) install 
-	dh_install --sourcedir=`pwd`/debian/midgard2-runtime
+	$(MAKE) install
+	cp src/midgard2-runtime-installer ${PWD}/debian/midgard2-runtime/usr/bin
+	dh_install --sourcedir=${PWD}/debian/midgard2-runtime
 	
 binary-indep: DH_OPTIONS=-i
 binary-indep:
