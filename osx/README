@@ -1,0 +1,7 @@
+# The plan
+
+1) Make sure we can install all the midgard2 crap via some port/build system and that it's working
+2) Check the broken shit with gda4 and fixed-paths. Could be we need to patch it manually (= create our own homebrew/ports recepie with patches for relocation)
+3) Create the scripts (basically take from Builder and modify) the scripts that properly relocate the whole lib structure for bundle packaging
+4) Create a basic XCode project that does nothing but just packs the libs correctly and sets the paths correctly
+5) Actually write the runtime code.
