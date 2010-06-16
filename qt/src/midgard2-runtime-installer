@@ -7,32 +7,10 @@ if (!extension_loaded("yaml"))
 	die ("YAML extension required! \n");
 }
 
-$php_ini_contents = <<<EOF
-midgard.http=On
-midgard.engine=On
-midgard.configuration_file=midgard.conf
-midgard.superglobals_compat=On
-EOF;
-
-$midgard_conf_contents = <<<EOF
-[MidgardDir]
-#ShareDir=
-#VarDir=
-#BlobDir=
-#CacheDir=
-
-[MidgardDatabase]
-Type=SQLite
-Host=
-Name=midgard
-Username=midgard
-Password=midgard
-
-#DefaultLanguage=pl
-Loglevel=debug
-TableCreate=true
-TableUpdate=true
-EOF;
+if (!extension_loaded("midgard2"))
+{
+	die ("Midgard2 extension required! \n");
+}
 
 // Check if we have param
 if ($argc <= 1) 
@@ -83,7 +61,7 @@ $bundle_manifest = $bundle_directory . "/" . "manifest.yml";
 $bundle_name = "unknown";
 $base_directory = getenv('HOME') . '/.midgard2/';
 $source_share_directory = "/usr/share/midgard2/";
-$components = array('midgardmvc_core', 'midgardmvc_helper_forms', 'midgardmvc_helper_xsspreventer', 'midgardmvc_admin_asgard');
+$components = array('midgardmvc_core', 'midgardmvc_helper_forms', 'midgardmvc_helper_xsspreventer', 'midgardmvc_admin');
 
 // 1. Extracting the bundle
 echo "Extracting the bundle from zip\n";
@@ -98,11 +76,11 @@ if (!file_exists($bundle_manifest)) {
 
 $data = yaml_parse_file ($bundle_manifest);
 $bundle_name = $data['name'];
-$target_directory = $base_directory . '/' . $bundle_name . "/";
-$target_share_directory = $target_directory . "/share/";
-$target_views_directory = $target_share_directory . "/views/";
-$target_cache_directory = $target_directory . "/cache/";
-$target_schema_directory = $target_directory . "/share/schema/";
+$target_directory = $base_directory . $bundle_name . "/";
+$target_share_directory = $target_directory . "share/";
+$target_views_directory = $target_share_directory . "views/";
+$target_cache_directory = $target_directory . "cache/";
+$target_schema_directory = $target_directory . "share/schema/";
 echo "Installing bundle in: " . $target_directory . "\n";
 
 // 3. Create the directory
@@ -157,11 +135,40 @@ if (!file_exists($target_cache_directory))
 	mkdir($target_cache_directory);
 }
 
+$configuration_file = $target_directory . "/midgard.conf";
+$php_ini_contents = <<<EOF
+midgard.http=On
+midgard.engine=On
+midgard.configuration_file=$configuration_file
+midgard.superglobals_compat=On
+EOF;
+
 // 10. Create the php.ini
 echo "Bootstrapping internal php configuration\n";
 $f = fopen($target_directory . "php.ini", "w");
 fwrite($f, $php_ini_contents);
 fclose($f);
+
+$midgard_conf_contents = <<<EOF
+[MidgardDir]
+ShareDir=$target_share_directory
+#VarDir=
+#BlobDir=
+#CacheDir=
+
+[MidgardDatabase]
+Type=SQLite
+DatabaseDir=$target_directory
+Host=
+Name=midgard
+Username=midgard
+Password=midgard
+
+#DefaultLanguage=pl
+Loglevel=debug
+TableCreate=true
+TableUpdate=true
+EOF;
 
 // 11. Create the midgard.conf
 echo "Bootstrapping internal midgard configuration\n";
@@ -175,6 +182,60 @@ recurse_copy($bundle_directory . "PHPTAL", $target_directory . "PHPTAL");
 copy($bundle_directory . "PHPTAL.php", $target_directory . "PHPTAL.php");
 
 // 13. Prepare the database
-echo "Bootstrapping database (TODO: actually do this!)\n"
+echo "Bootstrapping database \n";
+
+$target_configuration_file = $target_directory . "midgard.conf";
+$database_creator_contents = <<<EOF
+<?php
+/* Read configuration from target directory */
+\$config = new midgard_config();
+\$config->read_file_at_path ("$target_configuration_file");
+/* Open connection */
+\$mgd = midgard_connection::get_instance();
+if (!\$mgd->open_config (\$config))
+{
+	die ("Couldn't open connection from given configuration! \n");
+}
+
+/* Create base storage */
+midgard_storage::create_base_storage();
+
+/* Create storage for every class which uses storage */
+\$re = new ReflectionExtension ("midgard2");
+\$classes = \$re->getClasses();
+
+foreach (\$classes as \$refclass)
+{
+	\$mrcs[] = new midgard_reflection_class (\$refclass->getName());
+}
+
+foreach (\$mrcs as \$refclass)
+{
+	\$parent_class = \$refclass->getParentClass();
+
+	if (!\$parent_class)
+	{
+		continue;
+	}
+
+	if (\$parent_class->getName() == "midgard_dbobject"
+		|| \$parent_class->getName() == "midgard_object")
+	{
+		echo "Create storage for " . \$refclass->getName() . " class...";
+		midgard_storage::create_class_storage (\$refclass->getName());
+		echo "Done \n";
+	}
+}
+?>
+EOF;
+
+$f = fopen($target_directory . "database_creator.php", "w");
+fwrite($f, $database_creator_contents);
+fclose($f);
+
+$target_ini_file = $target_directory . "php.ini";
+$target_file = $target_directory . "database_creator.php";
+$command = "php -c $target_ini_file $target_file";
+system ($command);
 
 ?>
