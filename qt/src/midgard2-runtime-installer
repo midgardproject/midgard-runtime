@@ -64,9 +64,10 @@ $source_share_directory = "/usr/share/midgard2/";
 $components = array('midgardmvc_core', 'midgardmvc_helper_forms', 'midgardmvc_helper_xsspreventer', 'midgardmvc_admin');
 
 // 1. Extracting the bundle
-echo "Extracting the bundle from zip\n";
+echo "Extracting the bundle from zip: ";
 $bundle_phar = new PharData($argv[1]);
 $bundle_phar->extractTo($bundle_directory);
+echo "OK \n";
 
 // 2. Verify a bit...
 if (!file_exists($bundle_manifest)) {
@@ -120,9 +121,10 @@ foreach ($components as $c)
 }
 
 // 7. Copy the incoming MGD xml pieces
-echo "Installing common midgard data\n";
+echo "Installing common midgard data: ";
 copy($source_share_directory . "MidgardObjects.xml", $target_share_directory . "MidgardObjects.xml");
 copy($source_share_directory . "midgard_auth_types.xml", $target_share_directory . "midgard_auth_types.xml");
+echo "OK \n";
 
 // 8. Create the views
 if (!file_exists($target_views_directory))
@@ -146,7 +148,7 @@ midgard.configuration_file=$configuration_file
 midgard.superglobals_compat=On
 
 ;PHP configuration
-display_errors = "stderr"
+display_errors=stdout
 log_errors=On
 error_log=$error_log
 EOF;
@@ -162,7 +164,7 @@ $midgard_conf_contents = <<<EOF
 ShareDir=$target_share_directory
 #VarDir=
 #BlobDir=
-#CacheDir=
+CacheDir=$target_cache_directory
 
 [MidgardDatabase]
 Type=SQLite
@@ -234,6 +236,20 @@ foreach (\$mrcs as \$refclass)
 		echo "Done \n";
 	}
 }
+
+/* Check if there's storage created for core node */
+if (!midgard_storage::class_storage_exists ("midgardmvc_core_node"))
+	throw new Exception ("Storage for midgardmvc_core_node doesn't exist");
+
+/* Create root node */
+\$node = new midgardmvc_core_node();
+\$node->set_guid ("4a2f5298c09611de9dcf75343667cef6cef6");
+\$node->up = 0;
+\$node->name = "midgardmvc_root";
+
+if (!\$node->create ())
+	throw new Exception ("Failed to create MVC root node: " . \$mgd->get_error_string()); 
+
 ?>
 EOF;
 
