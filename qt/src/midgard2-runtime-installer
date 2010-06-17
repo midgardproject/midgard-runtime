@@ -245,6 +245,7 @@ if (!midgard_storage::class_storage_exists ("midgardmvc_core_node"))
 \$node = new midgardmvc_core_node();
 \$node->set_guid ("4a2f5298c09611de9dcf75343667cef6cef6");
 \$node->up = 0;
+\$node->content = "Welcome to Midgard MVC!";
 \$node->name = "midgardmvc_root";
 
 if (!\$node->create ())
