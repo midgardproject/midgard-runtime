@@ -110,11 +110,12 @@ if (!file_exists($target_schema_directory))
 
 foreach ($components as $c) 
 {
-    $source = $bundle_directory . $c . "/configuration"; // FIXME actually find .xml
-    $target = $target_schema_directory . $c;
-	if (file_exists($source))
+	$source = $bundle_directory . $c . "/configuration"; 
+	$mgdschema_path = $source . "/mgdschema.xml";
+	$mgdschema_file = basename ($mgdschema_path, ".xml");
+	if ($mgdschema_file == "mgdschema") 
 	{
-		recurse_copy($source, $target);
+		copy ($mgdschema_path, $target_schema_directory . $c . ".xml");
 	}
 }
 
@@ -136,11 +137,18 @@ if (!file_exists($target_cache_directory))
 }
 
 $configuration_file = $target_directory . "/midgard.conf";
+$error_log = $target_directory . "/runtime.log";
 $php_ini_contents = <<<EOF
+; Midgard2 configuration
 midgard.http=On
 midgard.engine=On
 midgard.configuration_file=$configuration_file
 midgard.superglobals_compat=On
+
+;PHP configuration
+display_errors = "stderr"
+log_errors=On
+error_log=$error_log
 EOF;
 
 // 10. Create the php.ini
