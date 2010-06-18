@@ -1,57 +1,20 @@
 #!/usr/bin/env php5
-
 <?php
 
-if (!extension_loaded("yaml"))
-{
-    die ("YAML extension required! \n");
-}
-
-if (!extension_loaded("midgard2"))
-{
-    die ("Midgard2 extension required! \n");
-}
+define('PREFIX', '/usr');
 
 // Check if we have param
 if ($argc <= 1)
 {
-    die ("Usage: midgard2-runtime-installer <BUNDLE PATH>\n");
+    die("Usage: midgard2-runtime-installer <BUNDLE PATH>\n");
 }
 
 // Check if exists...
 if (!file_exists($argv[1]))
 {
-    die ("Specified bundle does not exist.\n");
+    die("Specified bundle does not exist.\n");
 }
 
-// Copied from somewhere... hope it makes sense.
-// But well, I'm not a PHP junkie...
-function recurse_copy($src, $dst)
-{
-    $dir = opendir($src);
-    @mkdir($dst);
-
-    while (false !== ($file = readdir($dir)))
-    {
-        if (   $file != '.'
-            && $file != '..')
-        {
-            $src_file = $src.'/'.$file;
-            $dst_file = $dst.'/'.$file;
-
-            if (is_dir($src_file))
-            {
-                recurse_copy($src_file, $dst_file);
-            }
-            else
-            {
-                copy($src_file, $dst_file);
-            }
-        }
-    }
-
-    closedir($dir);
-}
 
 function create_random_key($amount)
 {
@@ -63,60 +26,56 @@ function create_random_key($amount)
     return $randkey;
 }
 
-$bundle_directory =       sys_get_temp_dir() . '/' . create_random_key(10) . '/';
-$bundle_manifest =        $bundle_directory . "/" . "manifest.yml";
-$bundle_name =            "unknown";
-$base_directory =         getenv('HOME') . '/.midgard2/';
-$source_share_directory = "/usr/share/midgard2/";
+require 'pake/init.php';
+
+$bundle_directory =       sys_get_temp_dir().'/'.create_random_key(10).'/';
+$base_directory =         getenv('HOME').'/.midgard2/';
+$source_share_directory = PREFIX."/share/midgard2/";
 $components =             array('midgardmvc_core', 'midgardmvc_helper_forms', 'midgardmvc_helper_xsspreventer', 'midgardmvc_admin');
 
 // 1. Extracting the bundle
-echo "Extracting the bundle from zip: ";
-$bundle_phar = new PharData($argv[1]);
-$bundle_phar->extractTo($bundle_directory);
-echo "OK \n";
+pakeArchive::extractArchive($argv[1], $bundle_directory);
 
 // 2. Verify a bit...
-if (!file_exists($bundle_manifest)) {
-    echo "Not a valid bundle, the manifest.yml is missing [" . $bundle_manifest . "]\n";
-    exit(128);
+$bundle_manifest = $bundle_directory."manifest.yml";
+
+if (!file_exists($bundle_manifest))
+{
+    throw new pakeException("Not a valid bundle, the manifest.yml is missing [" . $bundle_manifest . "]");
 }
 
-$data =                    yaml_parse_file($bundle_manifest);
+$data = pakeYaml::loadFile($bundle_manifest);
+
 $bundle_name =             $data['name'];
 $target_directory =        $base_directory . $bundle_name . "/";
 $target_share_directory =  $target_directory . "share/";
-$target_views_directory =  $target_share_directory . "views/";
 $target_cache_directory =  $target_directory . "cache/";
-$target_schema_directory = $target_directory . "share/schema/";
+$target_schema_directory = $target_share_directory . "schema/";
+$target_views_directory =  $target_share_directory . "views/";
 
-echo "Installing bundle in: " . $target_directory . "\n";
+pake_echo_comment("Installing bundle in: ".$target_directory);
 
 // 3. Create the directory
-if (!file_exists($target_directory))
-    mkdir($target_directory);
+pake_mkdirs($target_directory);
 
 // 4. Create the share
-if (!file_exists($target_share_directory))
-{
-    mkdir($target_share_directory);
-}
+pake_mkdirs($target_share_directory);
 
 // 5. Copy the bundled components...
+$_any = pakeFinder::type('any');
 foreach ($components as $c)
 {
     $source = $bundle_directory . $c;
     $target = $target_directory . $c;
 
-    echo "Installing component: {$c}\n";
-    recurse_copy($source, $target);
+    pake_echo_comment("Installing component: ".$c);
+
+    pake_mkdirs($target);
+    pake_mirror($_any, $source, $target);
 }
 
 // 6. Copy the shemas from components
-if (!file_exists($target_schema_directory))
-{
-    mkdir($target_schema_directory);
-}
+pake_mkdirs($target_schema_directory);
 
 foreach ($components as $c)
 {
@@ -125,27 +84,20 @@ foreach ($components as $c)
 
     if (file_exists($mgdschema_path))
     {
-        copy($mgdschema_path, $target_path);
+        pake_copy($mgdschema_path, $target_path);
     }
 }
 
 // 7. Copy the incoming MGD xml pieces
-echo "Installing common midgard data: ";
-copy($source_share_directory."MidgardObjects.xml",     $target_share_directory."MidgardObjects.xml");
-copy($source_share_directory."midgard_auth_types.xml", $target_share_directory."midgard_auth_types.xml");
-echo "OK \n";
+pake_echo_comment("Installing common midgard data");
+pake_copy($source_share_directory."MidgardObjects.xml",     $target_share_directory."MidgardObjects.xml");
+pake_copy($source_share_directory."midgard_auth_types.xml", $target_share_directory."midgard_auth_types.xml");
 
 // 8. Create the views
-if (!file_exists($target_views_directory))
-{
-    mkdir($target_views_directory);
-}
+pake_mkdirs($target_views_directory);
 
 // 9. Create the cache
-if (!file_exists($target_cache_directory))
-{
-    mkdir($target_cache_directory);
-}
+pake_mkdirs($target_cache_directory);
 
 // 10. Create the php.ini
 $configuration_file = $target_directory."/midgard.conf";
@@ -164,9 +116,10 @@ log_errors=On
 error_log={$error_log}
 EOF;
 
-echo "Bootstrapping internal php configuration\n";
+pake_echo_comment("Bootstrapping internal php configuration");
 $target_ini_file = $target_directory."php.ini";
 file_put_contents($target_ini_file, $php_ini_contents);
+pake_echo_action('file+', $target_ini_file);
 
 // 11. Create the midgard.conf
 $midgard_conf_contents = <<<EOF
@@ -190,16 +143,18 @@ TableCreate=true
 TableUpdate=true
 EOF;
 
-echo "Bootstrapping internal midgard configuration\n";
-file_put_contents($target_directory."midgard.conf", $midgard_conf_contents);
+pake_echo_comment("Bootstrapping internal midgard configuration");
+file_put_contents($configuration_file, $midgard_conf_contents);
+pake_echo_action('file+', $configuration_file);
 
 // 12. Copy TAL
-echo "Installing PHPTAL (TODO: via extra dist in bundle)\n";
-recurse_copy($bundle_directory."PHPTAL", $target_directory."PHPTAL");
-copy($bundle_directory."PHPTAL.php", $target_directory."PHPTAL.php");
+pake_echo_comment("Installing PHPTAL (TODO: via extra dist in bundle)");
+pake_mkdirs($target_directory.'PHPTAL');
+pake_mirror($_any, $bundle_directory.'PHPTAL', $target_directory.'PHPTAL');
+pake_copy($bundle_directory."PHPTAL.php", $target_directory."PHPTAL.php");
 
 // 13. Prepare the database
-echo "Bootstrapping database \n";
+pake_echo_comment("Bootstrapping database");
 
 $target_configuration_file = $target_directory."midgard.conf";
 $database_creator_contents = <<<EOF
@@ -264,7 +219,10 @@ EOF;
 
 $target_file = $target_directory."database_creator.php";
 file_put_contents($target_file, $database_creator_contents);
+pake_echo_action('file+', $target_file);
 
-$command = 'php -c '.escapeshellarg($target_ini_file).' '.escapeshellarg($target_file);
+pake_sh('php -c '.escapeshellarg($target_ini_file).' '.escapeshellarg($target_file), true);
 
-system($command);
+
+//cleanup
+pake_remove_dir($bundle_directory);
