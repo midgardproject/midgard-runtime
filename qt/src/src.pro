@@ -5,5 +5,5 @@ QT += webkit network
 RESOURCES = midgard2-runtime.qrc
 
 bin.path = /usr/bin/
-bin.files = midgard2-runtime
+bin.files = midgard2-runtime midgard2-runtime-installer
 INSTALLS += bin
