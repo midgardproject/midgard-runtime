@@ -114,7 +114,9 @@ foreach ($components as $c)
 	$source = $bundle_directory . $c . "/configuration"; 
 	$mgdschema_path = $source . "/mgdschema.xml";
 	$mgdschema_file = basename ($mgdschema_path, ".xml");
-	if ($mgdschema_file == "mgdschema") 
+	if (   $mgdschema_file == "mgdschema"
+	    && file_exists($mgdschema_path)
+	)
 	{
 		copy ($mgdschema_path, $target_schema_directory . $c . ".xml");
 	}
