@@ -4,12 +4,12 @@
 
 if (!extension_loaded("yaml"))
 {
-	die ("YAML extension required! \n");
+    die ("YAML extension required! \n");
 }
 
 if (!extension_loaded("midgard2"))
 {
-	die ("Midgard2 extension required! \n");
+    die ("Midgard2 extension required! \n");
 }
 
 // Check if we have param
@@ -30,12 +30,12 @@ function recurse_copy($src, $dst)
 { 
     $dir = opendir($src); 
     @mkdir($dst); 
-	while(false !== ( $file = readdir($dir)) ) 
-	{ 
-		if (( $file != '.' ) && ( $file != '..' )) 
-		{ 
-			if ( is_dir($src . '/' . $file) ) 
-			{ 
+    while(false !== ( $file = readdir($dir)) ) 
+    { 
+        if (( $file != '.' ) && ( $file != '..' )) 
+        { 
+            if ( is_dir($src . '/' . $file) ) 
+            { 
                 recurse_copy($src . '/' . $file,$dst . '/' . $file); 
             } 
             else { 
@@ -91,7 +91,7 @@ if (!file_exists($target_directory))
 // 4. Create the share
 if (!file_exists($target_share_directory))
 {
-	mkdir($target_share_directory);
+    mkdir($target_share_directory);
 }
 
 // 5. Copy the bundled components...
@@ -106,20 +106,20 @@ foreach ($components as $c)
 // 6. Copy the shemas from components
 if (!file_exists($target_schema_directory))
 {
-	mkdir($target_schema_directory);
+    mkdir($target_schema_directory);
 }
 
 foreach ($components as $c) 
 {
-	$source = $bundle_directory . $c . "/configuration"; 
-	$mgdschema_path = $source . "/mgdschema.xml";
-	$mgdschema_file = basename ($mgdschema_path, ".xml");
-	if (   $mgdschema_file == "mgdschema"
-	    && file_exists($mgdschema_path)
-	)
-	{
-		copy ($mgdschema_path, $target_schema_directory . $c . ".xml");
-	}
+    $source = $bundle_directory . $c . "/configuration"; 
+    $mgdschema_path = $source . "/mgdschema.xml";
+    $mgdschema_file = basename ($mgdschema_path, ".xml");
+    if (   $mgdschema_file == "mgdschema"
+        && file_exists($mgdschema_path)
+    )
+    {
+        copy ($mgdschema_path, $target_schema_directory . $c . ".xml");
+    }
 }
 
 // 7. Copy the incoming MGD xml pieces
@@ -131,13 +131,13 @@ echo "OK \n";
 // 8. Create the views
 if (!file_exists($target_views_directory))
 {
-	mkdir($target_views_directory);
+    mkdir($target_views_directory);
 }
 
 // 9. Create the cache
 if (!file_exists($target_cache_directory)) 
 {
-	mkdir($target_cache_directory);
+    mkdir($target_cache_directory);
 }
 
 $configuration_file = $target_directory . "/midgard.conf";
@@ -206,7 +206,7 @@ $database_creator_contents = <<<EOF
 \$mgd = midgard_connection::get_instance();
 if (!\$mgd->open_config (\$config))
 {
-	die ("Couldn't open connection from given configuration! \n");
+    die ("Couldn't open connection from given configuration! \n");
 }
 
 /* Create base storage */
@@ -218,30 +218,30 @@ midgard_storage::create_base_storage();
 
 foreach (\$classes as \$refclass)
 {
-	\$mrcs[] = new midgard_reflection_class (\$refclass->getName());
+    \$mrcs[] = new midgard_reflection_class (\$refclass->getName());
 }
 
 foreach (\$mrcs as \$refclass)
 {
-	\$parent_class = \$refclass->getParentClass();
+    \$parent_class = \$refclass->getParentClass();
 
-	if (!\$parent_class)
-	{
-		continue;
-	}
+    if (!\$parent_class)
+    {
+        continue;
+    }
 
-	if (\$parent_class->getName() == "midgard_dbobject"
-		|| \$parent_class->getName() == "midgard_object")
-	{
-		echo "Create storage for " . \$refclass->getName() . " class...";
-		midgard_storage::create_class_storage (\$refclass->getName());
-		echo "Done \n";
-	}
+    if (\$parent_class->getName() == "midgard_dbobject"
+        || \$parent_class->getName() == "midgard_object")
+    {
+        echo "Create storage for " . \$refclass->getName() . " class...";
+        midgard_storage::create_class_storage (\$refclass->getName());
+        echo "Done \n";
+    }
 }
 
 /* Check if there's storage created for core node */
 if (!midgard_storage::class_storage_exists ("midgardmvc_core_node"))
-	throw new Exception ("Storage for midgardmvc_core_node doesn't exist");
+    throw new Exception ("Storage for midgardmvc_core_node doesn't exist");
 
 /* Create root node */
 \$node = new midgardmvc_core_node();
@@ -251,7 +251,7 @@ if (!midgard_storage::class_storage_exists ("midgardmvc_core_node"))
 \$node->name = "midgardmvc_root";
 
 if (!\$node->create ())
-	throw new Exception ("Failed to create MVC root node: " . \$mgd->get_error_string()); 
+    throw new Exception ("Failed to create MVC root node: " . \$mgd->get_error_string()); 
 
 ?>
 EOF;
