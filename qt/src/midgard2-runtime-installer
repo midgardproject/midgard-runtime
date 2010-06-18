@@ -13,47 +13,47 @@ if (!extension_loaded("midgard2"))
 }
 
 // Check if we have param
-if ($argc <= 1) 
+if ($argc <= 1)
 {
     die ("Usage: midgard2-runtime-installer <BUNDLE PATH>\n");
 }
 
 // Check if exists...
-if (!file_exists($argv[1])) 
+if (!file_exists($argv[1]))
 {
     die ("Specified bundle does not exist.\n");
-} 
+}
 
-// Copied from somewhere... hope it makes sense. 
+// Copied from somewhere... hope it makes sense.
 // But well, I'm not a PHP junkie...
-function recurse_copy($src, $dst) 
-{ 
-    $dir = opendir($src); 
-    @mkdir($dst); 
-    while(false !== ( $file = readdir($dir)) ) 
-    { 
-        if (( $file != '.' ) && ( $file != '..' )) 
-        { 
-            if ( is_dir($src . '/' . $file) ) 
-            { 
-                recurse_copy($src . '/' . $file,$dst . '/' . $file); 
-            } 
-            else { 
-                copy($src . '/' . $file,$dst . '/' . $file); 
-            } 
-        } 
-    } 
-    closedir($dir); 
-} 
+function recurse_copy($src, $dst)
+{
+    $dir = opendir($src);
+    @mkdir($dst);
+    while(false !== ( $file = readdir($dir)) )
+    {
+        if (( $file != '.' ) && ( $file != '..' ))
+        {
+            if ( is_dir($src . '/' . $file) )
+            {
+                recurse_copy($src . '/' . $file,$dst . '/' . $file);
+            }
+            else {
+                copy($src . '/' . $file,$dst . '/' . $file);
+            }
+        }
+    }
+    closedir($dir);
+}
 
-function create_random_key($amount) 
+function create_random_key($amount)
 {
     $keyset  = "abcdefghijklmABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     $randkey = "";
     for ($i=0; $i<$amount; $i++)
         $randkey .= substr($keyset, rand(0, strlen($keyset)-1), 1);
 
-    return $randkey;    
+    return $randkey;
 }
 
 $bundle_directory = sys_get_temp_dir() . '/' . create_random_key(10) . '/';
@@ -73,7 +73,7 @@ echo "OK \n";
 if (!file_exists($bundle_manifest)) {
     echo "Not a valid bundle, the manifest.yml is missing [" . $bundle_manifest . "]\n";
     exit(128);
-} 
+}
 
 $data = yaml_parse_file ($bundle_manifest);
 $bundle_name = $data['name'];
@@ -95,7 +95,7 @@ if (!file_exists($target_share_directory))
 }
 
 // 5. Copy the bundled components...
-foreach ($components as $c) 
+foreach ($components as $c)
 {
     $source = $bundle_directory . $c;
     $target = $target_directory . $c;
@@ -109,9 +109,9 @@ if (!file_exists($target_schema_directory))
     mkdir($target_schema_directory);
 }
 
-foreach ($components as $c) 
+foreach ($components as $c)
 {
-    $source = $bundle_directory . $c . "/configuration"; 
+    $source = $bundle_directory . $c . "/configuration";
     $mgdschema_path = $source . "/mgdschema.xml";
     $mgdschema_file = basename ($mgdschema_path, ".xml");
     if (   $mgdschema_file == "mgdschema"
@@ -135,7 +135,7 @@ if (!file_exists($target_views_directory))
 }
 
 // 9. Create the cache
-if (!file_exists($target_cache_directory)) 
+if (!file_exists($target_cache_directory))
 {
     mkdir($target_cache_directory);
 }
@@ -251,7 +251,7 @@ if (!midgard_storage::class_storage_exists ("midgardmvc_core_node"))
 \$node->name = "midgardmvc_root";
 
 if (!\$node->create ())
-    throw new Exception ("Failed to create MVC root node: " . \$mgd->get_error_string()); 
+    throw new Exception ("Failed to create MVC root node: " . \$mgd->get_error_string());
 
 ?>
 EOF;
