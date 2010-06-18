@@ -30,19 +30,26 @@ function recurse_copy($src, $dst)
 {
     $dir = opendir($src);
     @mkdir($dst);
-    while(false !== ( $file = readdir($dir)) )
+
+    while (false !== ($file = readdir($dir)))
     {
-        if (( $file != '.' ) && ( $file != '..' ))
+        if (   $file != '.'
+            && $file != '..')
         {
-            if ( is_dir($src . '/' . $file) )
+            $src_file = $src.'/'.$file;
+            $dst_file = $dst.'/'.$file;
+
+            if (is_dir($src_file))
             {
-                recurse_copy($src . '/' . $file,$dst . '/' . $file);
+                recurse_copy($src_file, $dst_file);
             }
-            else {
-                copy($src . '/' . $file,$dst . '/' . $file);
+            else
+            {
+                copy($src_file, $dst_file);
             }
         }
     }
+
     closedir($dir);
 }
 
@@ -50,18 +57,18 @@ function create_random_key($amount)
 {
     $keyset  = "abcdefghijklmABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     $randkey = "";
-    for ($i=0; $i<$amount; $i++)
+    for ($i = 0; $i < $amount; $i++)
         $randkey .= substr($keyset, rand(0, strlen($keyset)-1), 1);
 
     return $randkey;
 }
 
-$bundle_directory = sys_get_temp_dir() . '/' . create_random_key(10) . '/';
-$bundle_manifest = $bundle_directory . "/" . "manifest.yml";
-$bundle_name = "unknown";
-$base_directory = getenv('HOME') . '/.midgard2/';
+$bundle_directory =       sys_get_temp_dir() . '/' . create_random_key(10) . '/';
+$bundle_manifest =        $bundle_directory . "/" . "manifest.yml";
+$bundle_name =            "unknown";
+$base_directory =         getenv('HOME') . '/.midgard2/';
 $source_share_directory = "/usr/share/midgard2/";
-$components = array('midgardmvc_core', 'midgardmvc_helper_forms', 'midgardmvc_helper_xsspreventer', 'midgardmvc_admin');
+$components =             array('midgardmvc_core', 'midgardmvc_helper_forms', 'midgardmvc_helper_xsspreventer', 'midgardmvc_admin');
 
 // 1. Extracting the bundle
 echo "Extracting the bundle from zip: ";
@@ -75,13 +82,14 @@ if (!file_exists($bundle_manifest)) {
     exit(128);
 }
 
-$data = yaml_parse_file ($bundle_manifest);
-$bundle_name = $data['name'];
-$target_directory = $base_directory . $bundle_name . "/";
-$target_share_directory = $target_directory . "share/";
-$target_views_directory = $target_share_directory . "views/";
-$target_cache_directory = $target_directory . "cache/";
+$data =                    yaml_parse_file($bundle_manifest);
+$bundle_name =             $data['name'];
+$target_directory =        $base_directory . $bundle_name . "/";
+$target_share_directory =  $target_directory . "share/";
+$target_views_directory =  $target_share_directory . "views/";
+$target_cache_directory =  $target_directory . "cache/";
 $target_schema_directory = $target_directory . "share/schema/";
+
 echo "Installing bundle in: " . $target_directory . "\n";
 
 // 3. Create the directory
@@ -99,7 +107,8 @@ foreach ($components as $c)
 {
     $source = $bundle_directory . $c;
     $target = $target_directory . $c;
-    echo "Installing component: " . $c . "\n";
+
+    echo "Installing component: {$c}\n";
     recurse_copy($source, $target);
 }
 
@@ -111,21 +120,19 @@ if (!file_exists($target_schema_directory))
 
 foreach ($components as $c)
 {
-    $source = $bundle_directory . $c . "/configuration";
-    $mgdschema_path = $source . "/mgdschema.xml";
-    $mgdschema_file = basename ($mgdschema_path, ".xml");
-    if (   $mgdschema_file == "mgdschema"
-        && file_exists($mgdschema_path)
-    )
+    $mgdschema_path = $bundle_directory."{$c}/configuration/mgdschema.xml";
+    $target_path =    $target_schema_directory."{$c}.xml";
+
+    if (file_exists($mgdschema_path))
     {
-        copy ($mgdschema_path, $target_schema_directory . $c . ".xml");
+        copy($mgdschema_path, $target_path);
     }
 }
 
 // 7. Copy the incoming MGD xml pieces
 echo "Installing common midgard data: ";
-copy($source_share_directory . "MidgardObjects.xml", $target_share_directory . "MidgardObjects.xml");
-copy($source_share_directory . "midgard_auth_types.xml", $target_share_directory . "midgard_auth_types.xml");
+copy($source_share_directory."MidgardObjects.xml",     $target_share_directory."MidgardObjects.xml");
+copy($source_share_directory."midgard_auth_types.xml", $target_share_directory."midgard_auth_types.xml");
 echo "OK \n";
 
 // 8. Create the views
@@ -140,37 +147,38 @@ if (!file_exists($target_cache_directory))
     mkdir($target_cache_directory);
 }
 
-$configuration_file = $target_directory . "/midgard.conf";
-$error_log = $target_directory . "/runtime.log";
+// 10. Create the php.ini
+$configuration_file = $target_directory."/midgard.conf";
+$error_log =          $target_directory."/runtime.log";
+
 $php_ini_contents = <<<EOF
 ; Midgard2 configuration
 midgard.http=On
 midgard.engine=On
-midgard.configuration_file=$configuration_file
+midgard.configuration_file={$configuration_file}
 midgard.superglobals_compat=On
 
 ;PHP configuration
 display_errors=stdout
 log_errors=On
-error_log=$error_log
+error_log={$error_log}
 EOF;
 
-// 10. Create the php.ini
 echo "Bootstrapping internal php configuration\n";
-$f = fopen($target_directory . "php.ini", "w");
-fwrite($f, $php_ini_contents);
-fclose($f);
+$target_ini_file = $target_directory."php.ini";
+file_put_contents($target_ini_file, $php_ini_contents);
 
+// 11. Create the midgard.conf
 $midgard_conf_contents = <<<EOF
 [MidgardDir]
-ShareDir=$target_share_directory
+ShareDir={$target_share_directory}
 #VarDir=
 #BlobDir=
-CacheDir=$target_cache_directory
+CacheDir={$target_cache_directory}
 
 [MidgardDatabase]
 Type=SQLite
-DatabaseDir=$target_directory
+DatabaseDir={$target_directory}
 Host=
 Name=midgard
 Username=midgard
@@ -182,43 +190,41 @@ TableCreate=true
 TableUpdate=true
 EOF;
 
-// 11. Create the midgard.conf
 echo "Bootstrapping internal midgard configuration\n";
-$f = fopen($target_directory . "midgard.conf", "w");
-fwrite($f, $midgard_conf_contents);
-fclose($f);
+file_put_contents($target_directory."midgard.conf", $midgard_conf_contents);
 
 // 12. Copy TAL
 echo "Installing PHPTAL (TODO: via extra dist in bundle)\n";
-recurse_copy($bundle_directory . "PHPTAL", $target_directory . "PHPTAL");
-copy($bundle_directory . "PHPTAL.php", $target_directory . "PHPTAL.php");
+recurse_copy($bundle_directory."PHPTAL", $target_directory."PHPTAL");
+copy($bundle_directory."PHPTAL.php", $target_directory."PHPTAL.php");
 
 // 13. Prepare the database
 echo "Bootstrapping database \n";
 
-$target_configuration_file = $target_directory . "midgard.conf";
+$target_configuration_file = $target_directory."midgard.conf";
 $database_creator_contents = <<<EOF
 <?php
 /* Read configuration from target directory */
 \$config = new midgard_config();
-\$config->read_file_at_path ("$target_configuration_file");
+\$config->read_file_at_path("{$target_configuration_file}");
+
 /* Open connection */
 \$mgd = midgard_connection::get_instance();
-if (!\$mgd->open_config (\$config))
+if (!\$mgd->open_config(\$config))
 {
-    die ("Couldn't open connection from given configuration! \n");
+    die("Couldn't open connection from given configuration! \n");
 }
 
 /* Create base storage */
 midgard_storage::create_base_storage();
 
 /* Create storage for every class which uses storage */
-\$re = new ReflectionExtension ("midgard2");
+\$re = new ReflectionExtension("midgard2");
 \$classes = \$re->getClasses();
 
 foreach (\$classes as \$refclass)
 {
-    \$mrcs[] = new midgard_reflection_class (\$refclass->getName());
+    \$mrcs[] = new midgard_reflection_class(\$refclass->getName());
 }
 
 foreach (\$mrcs as \$refclass)
@@ -234,35 +240,31 @@ foreach (\$mrcs as \$refclass)
         || \$parent_class->getName() == "midgard_object")
     {
         echo "Create storage for " . \$refclass->getName() . " class...";
-        midgard_storage::create_class_storage (\$refclass->getName());
+        midgard_storage::create_class_storage(\$refclass->getName());
         echo "Done \n";
     }
 }
 
 /* Check if there's storage created for core node */
 if (!midgard_storage::class_storage_exists ("midgardmvc_core_node"))
-    throw new Exception ("Storage for midgardmvc_core_node doesn't exist");
+    throw new Exception("Storage for midgardmvc_core_node doesn't exist");
 
 /* Create root node */
 \$node = new midgardmvc_core_node();
-\$node->set_guid ("4a2f5298c09611de9dcf75343667cef6cef6");
+\$node->set_guid("4a2f5298c09611de9dcf75343667cef6cef6");
 \$node->up = 0;
 \$node->content = "Welcome to Midgard MVC!";
 \$node->name = "midgardmvc_root";
 
-if (!\$node->create ())
-    throw new Exception ("Failed to create MVC root node: " . \$mgd->get_error_string());
+if (!\$node->create())
+    throw new Exception("Failed to create MVC root node: " . \$mgd->get_error_string());
 
 ?>
 EOF;
 
-$f = fopen($target_directory . "database_creator.php", "w");
-fwrite($f, $database_creator_contents);
-fclose($f);
+$target_file = $target_directory."database_creator.php";
+file_put_contents($target_file, $database_creator_contents);
 
-$target_ini_file = $target_directory . "php.ini";
-$target_file = $target_directory . "database_creator.php";
-$command = "php -c $target_ini_file $target_file";
-system ($command);
+$command = 'php -c '.escapeshellarg($target_ini_file).' '.escapeshellarg($target_file);
 
-?>
+system($command);
