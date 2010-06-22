@@ -35,4 +35,5 @@ void PhpProcess::start()
 
     setEnvironment(env);
     QProcess::start("php5", arguments);
+    sleep(1); // FIXME A bit ugly but for now...
 }
