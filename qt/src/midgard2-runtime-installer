@@ -34,7 +34,8 @@ $source_share_directory = PREFIX."/share/midgard2/";
 $components =             array('midgardmvc_core', 'midgardmvc_helper_forms', 'midgardmvc_helper_xsspreventer', 'midgardmvc_admin');
 
 // 1. Extracting the bundle
-pakeArchive::extractArchive($argv[1], $bundle_directory);
+// pakeArchive::extractArchive($argv[1], $bundle_directory);
+pake_sh(escapeshellarg(pake_which('unzip')).' '.escapeshellarg($argv[1].' -d '.escapeshellarg($bundle_directory)));
 
 // 2. Verify a bit...
 $bundle_manifest = $bundle_directory."manifest.yml";
