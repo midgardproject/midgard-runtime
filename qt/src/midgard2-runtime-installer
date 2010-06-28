@@ -1,138 +1,143 @@
-#!/usr/bin/env php5
+#!/usr/bin/env php
 <?php
-
-define('PREFIX', '/usr');
-
-// Check if we have param
-if ($argc <= 1)
-{
-    die("Usage: midgard2-runtime-installer <BUNDLE PATH>\n");
-}
-
-// Check if exists...
-if (!file_exists($argv[1]))
-{
-    die("Specified bundle does not exist.\n");
-}
-
-
-function create_random_key($amount)
-{
-    $keyset  = "abcdefghijklmABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    $randkey = "";
-    for ($i = 0; $i < $amount; $i++)
-        $randkey .= substr($keyset, rand(0, strlen($keyset)-1), 1);
-
-    return $randkey;
-}
 
 require 'pake/init.php';
 
-$bundle_directory =       sys_get_temp_dir().'/'.create_random_key(10).'/';
-$base_directory =         getenv('HOME').'/.midgard2/';
-$source_share_directory = PREFIX."/share/midgard2/";
-$components =             array('midgardmvc_core', 'midgardmvc_helper_forms', 'midgardmvc_helper_xsspreventer', 'midgardmvc_admin');
-
-// 1. Extracting the bundle
-// pakeArchive::extractArchive($argv[1], $bundle_directory);
-pake_sh(escapeshellarg(pake_which('unzip')).' '.escapeshellarg($argv[1]).' -d '.escapeshellarg($bundle_directory));
-
-// 2. Verify a bit...
-$bundle_manifest = $bundle_directory."manifest.yml";
-
-if (!file_exists($bundle_manifest))
+if ($argc <= 1)
 {
-    throw new pakeException("Not a valid bundle, the manifest.yml is missing [" . $bundle_manifest . "]");
+    throw new pakeException('Usage: midgard2-runtime-installer "/path/to/bundle.zip" ["override_name"]');
 }
 
-$data = pakeYaml::loadFile($bundle_manifest);
+$installer = new Midgard2RuntimeInstaller($argv[1], isset($argv[2]) ? $argv[2] : null);
+$installer->create_directories();
+$installer->copy_components();
+$installer->copy_tal();
+$installer->copy_base_xml_files();
+$installer->create_php_ini();
+$installer->create_midgard_conf();
+$installer->create_database_creator();
+unset($installer);
 
-$bundle_name =             $data['name'];
-$target_directory =        $base_directory . $bundle_name . "/";
-$target_share_directory =  $target_directory . "share/";
-$target_cache_directory =  $target_directory . "cache/";
-$target_schema_directory = $target_share_directory . "schema/";
-$target_views_directory =  $target_share_directory . "views/";
-
-pake_echo_comment("Installing bundle in: ".$target_directory);
-
-// 3. Create the directory
-pake_mkdirs($target_directory);
-
-// 4. Create the share
-pake_mkdirs($target_share_directory);
-
-// 5. Copy the bundled components...
-$_any = pakeFinder::type('any');
-foreach ($components as $c)
+class Midgard2RuntimeInstaller
 {
-    $source = $bundle_directory . $c;
-    $target = $target_directory . $c;
+    const PREFIX = '/usr';
 
-    pake_echo_comment("Installing component: ".$c);
+    private $components = null;
 
-    pake_mkdirs($target);
-    pake_mirror($_any, $source, $target);
-}
-
-// 6. Copy the shemas from components
-pake_mkdirs($target_schema_directory);
-
-foreach ($components as $c)
-{
-    $mgdschema_path = $bundle_directory."{$c}/configuration/mgdschema.xml";
-    $target_path =    $target_schema_directory."{$c}.xml";
-
-    if (file_exists($mgdschema_path))
+    public function __construct($bundle_file, $override_name)
     {
-        pake_copy($mgdschema_path, $target_path);
+        $this->components = array('midgardmvc_core', 'midgardmvc_helper_forms', 'midgardmvc_helper_xsspreventer', 'midgardmvc_admin');
+
+        if (!file_exists($bundle_file))
+        {
+            throw new pakeException("Specified bundle does not exist");
+        }
+
+        $this->bundle_directory = sys_get_temp_dir().'/'.self::create_random_key(10);
+
+        // 1. Extracting the bundle
+        // pakeArchive::extractArchive($argv[1], $this->bundle_directory);
+        pake_sh(escapeshellarg(pake_which('unzip')).' '.escapeshellarg($bundle_file).' -d '.escapeshellarg($this->bundle_directory));
+
+        // Load manifest from zip (if there isn't one, this is not a bundle)
+        $data = $this->load_manifest();
+
+        $_name = $override_name ? $override_name : $data['name'];
+
+        $this->target_directory = getenv('HOME').'/.midgard2/'.$_name;
+
+        $this->target_ini_file         = $this->target_directory.'/php.ini';
+        $this->configuration_file      = $this->target_directory.'/midgard.conf';
+        $this->target_cache_directory  = $this->target_directory.'/cache';
+        $this->target_share_directory  = $this->target_directory.'/share';
+        $this->target_schema_directory = $this->target_share_directory.'/schema';
+        $this->target_views_directory  = $this->target_share_directory.'/views';
+
+        pake_echo_comment("Installing bundle in: ".$target_directory);
     }
-}
 
-// 7. Copy the incoming MGD xml pieces
-pake_echo_comment("Installing common midgard data");
-pake_copy($source_share_directory."MidgardObjects.xml",     $target_share_directory."MidgardObjects.xml");
-pake_copy($source_share_directory."midgard_auth_types.xml", $target_share_directory."midgard_auth_types.xml");
+    public function __destruct()
+    {
+        pake_remove_dir($this->bundle_directory);
+    }
 
-// 8. Create the views
-pake_mkdirs($target_views_directory);
+    public function create_directories()
+    {
+        pake_mkdirs($this->target_directory);
+        pake_mkdirs($this->target_share_directory);
+        pake_mkdirs($this->target_schema_directory);
+        pake_mkdirs($this->target_views_directory);
+        pake_mkdirs($this->target_cache_directory);
+    }
 
-// 9. Create the cache
-pake_mkdirs($target_cache_directory);
+    public function copy_base_xml_files()
+    {
+        $source_share_directory = self::PREFIX."/share/midgard2";
 
-// 10. Create the php.ini
-$configuration_file = $target_directory."/midgard.conf";
-$error_log =          $target_directory."/runtime.log";
+        // 7. Copy the incoming MGD xml pieces
+        pake_echo_comment("Installing common midgard data");
+        pake_copy($source_share_directory."/MidgardObjects.xml",     $this->target_share_directory."MidgardObjects.xml");
+        pake_copy($source_share_directory."/midgard_auth_types.xml", $this->target_share_directory."midgard_auth_types.xml");
+    }
 
-$php_ini_contents = <<<EOF
+    public function copy_components()
+    {
+        $_any = pakeFinder::type('any');
+
+        foreach ($this->components as $c)
+        {
+            $source = $this->bundle_directory.'/'.$c;
+            $target = $this->target_directory.'/'.$c;
+
+            pake_echo_comment("Installing component: ".$c);
+
+            pake_mkdirs($target);
+            pake_mirror($_any, $source, $target);
+
+            // 6. Copy the shemas from components
+            $mgdschema_path = $source."/configuration/mgdschema.xml";
+
+            if (file_exists($mgdschema_path))
+            {
+                pake_copy($mgdschema_path, $this->target_schema_directory."/{$c}.xml");
+            }
+        }
+    }
+
+    public function create_php_ini()
+    {
+        $error_log =          $this->target_directory."/runtime.log";
+
+        $php_ini_contents = <<<INI
 ; Midgard2 configuration
 midgard.http=On
 midgard.engine=On
-midgard.configuration_file={$configuration_file}
+midgard.configuration_file={$this->configuration_file}
 midgard.superglobals_compat=On
 
 ;PHP configuration
 display_errors=stdout
 log_errors=On
 error_log={$error_log}
-EOF;
+INI;
 
-pake_echo_comment("Bootstrapping internal php configuration");
-$target_ini_file = $target_directory."php.ini";
-file_put_contents($target_ini_file, $php_ini_contents);
-pake_echo_action('file+', $target_ini_file);
+        pake_echo_comment("Bootstrapping internal php configuration");
+        file_put_contents($this->target_ini_file, $php_ini_contents);
+        pake_echo_action('file+', $target_ini_file);
+    }
 
-// 11. Create the midgard.conf
-$midgard_conf_contents = <<<EOF
+    public function create_midgard_conf()
+    {
+        $midgard_conf_contents = <<<INI
 [MidgardDir]
-ShareDir={$target_share_directory}
+ShareDir={$this->target_share_directory}
 #VarDir=
 #BlobDir=
-CacheDir={$target_cache_directory}
+CacheDir={$this->target_cache_directory}
 
 [MidgardDatabase]
 Type=SQLite
-DatabaseDir={$target_directory}
+DatabaseDir={$this->target_directory}
 Host=
 Name=midgard
 Username=midgard
@@ -142,27 +147,39 @@ Password=midgard
 Loglevel=debug
 TableCreate=true
 TableUpdate=true
-EOF;
+INI;
 
-pake_echo_comment("Bootstrapping internal midgard configuration");
-file_put_contents($configuration_file, $midgard_conf_contents);
-pake_echo_action('file+', $configuration_file);
+        pake_echo_comment("Bootstrapping internal midgard configuration");
+        file_put_contents($this->configuration_file, $midgard_conf_contents);
+        pake_echo_action('file+', $this->configuration_file);
+    }
 
-// 12. Copy TAL
-pake_echo_comment("Installing PHPTAL (TODO: via extra dist in bundle)");
-pake_mkdirs($target_directory.'PHPTAL');
-pake_mirror($_any, $bundle_directory.'PHPTAL', $target_directory.'PHPTAL');
-pake_copy($bundle_directory."PHPTAL.php", $target_directory."PHPTAL.php");
+    public function copy_tal()
+    {
+        pake_echo_comment("Installing PHPTAL (TODO: via extra dist in bundle)");
+        $_any = pakeFinder::type('any');
 
-// 13. Prepare the database
-pake_echo_comment("Bootstrapping database");
+        pake_mkdirs($this->target_directory.'/PHPTAL');
+        pake_mirror(
+            $_any,
+            $this->bundle_directory.'/PHPTAL',
+            $this->target_directory.'/PHPTAL'
+        );
+        pake_copy(
+            $this->bundle_directory.'/PHPTAL.php',
+            $this->target_directory.'/PHPTAL.php'
+        );
+    }
 
-$target_configuration_file = $target_directory."midgard.conf";
-$database_creator_contents = <<<EOF
+    public function create_database_creator()
+    {
+        pake_echo_comment("Bootstrapping database");
+
+        $database_creator_contents = <<<PHP
 <?php
 /* Read configuration from target directory */
 \$config = new midgard_config();
-\$config->read_file_at_path("{$target_configuration_file}");
+\$config->read_file_at_path("{$this->configuration_file}");
 
 /* Open connection */
 \$mgd = midgard_connection::get_instance();
@@ -215,15 +232,45 @@ if (!midgard_storage::class_storage_exists ("midgardmvc_core_node"))
 if (!\$node->create())
     throw new Exception("Failed to create MVC root node: " . \$mgd->get_error_string());
 
-?>
-EOF;
+PHP;
 
-$target_file = $target_directory."database_creator.php";
-file_put_contents($target_file, $database_creator_contents);
-pake_echo_action('file+', $target_file);
+        $target_file = $target_directory."/database_creator.php";
+        file_put_contents($target_file, $database_creator_contents);
+        pake_echo_action('file+', $target_file);
 
-pake_sh('php -c '.escapeshellarg($target_ini_file).' '.escapeshellarg($target_file), true);
+        // execute
+        pake_sh('php -c '.escapeshellarg($this->target_ini_file).' '.escapeshellarg($target_file), true);
+    }
 
 
-//cleanup
-pake_remove_dir($bundle_directory);
+    private function load_manifest()
+    {
+        $bundle_manifest = $this->bundle_directory.'/manifest.yml';
+
+        if (!file_exists($bundle_manifest))
+        {
+            throw new pakeException("Not a valid bundle, the manifest.yml is missing [" . $bundle_manifest . "]");
+        }
+
+        $data = pakeYaml::loadFile($bundle_manifest);
+
+        if (   !isset($data['type'])
+            or $data['type'] != 'runtime bundle')
+        {
+            throw new pakeException('this is not a valid bundle');
+        }
+
+        return $data;
+    }
+
+
+    private static function create_random_key($amount)
+    {
+        $keyset  = "abcdefghijklmABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        $randkey = "";
+        for ($i = 0; $i < $amount; $i++)
+            $randkey .= substr($keyset, rand(0, strlen($keyset)-1), 1);
+
+        return $randkey;
+    }
+}
