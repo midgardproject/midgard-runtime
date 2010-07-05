@@ -53,7 +53,7 @@ class Midgard2RuntimeInstaller
         $this->target_schema_directory = $this->target_share_directory.'/schema';
         $this->target_views_directory  = $this->target_share_directory.'/views';
 
-        pake_echo_comment("Installing bundle in: ".$target_directory);
+        pake_echo_comment("Installing bundle in: ".$this->target_directory);
     }
 
     public function __destruct()
@@ -76,8 +76,8 @@ class Midgard2RuntimeInstaller
 
         // 7. Copy the incoming MGD xml pieces
         pake_echo_comment("Installing common midgard data");
-        pake_copy($source_share_directory."/MidgardObjects.xml",     $this->target_share_directory."MidgardObjects.xml");
-        pake_copy($source_share_directory."/midgard_auth_types.xml", $this->target_share_directory."midgard_auth_types.xml");
+        pake_copy($source_share_directory."/MidgardObjects.xml",     $this->target_share_directory."/MidgardObjects.xml");
+        pake_copy($source_share_directory."/midgard_auth_types.xml", $this->target_share_directory."/midgard_auth_types.xml");
     }
 
     public function copy_components()
@@ -123,7 +123,7 @@ INI;
 
         pake_echo_comment("Bootstrapping internal php configuration");
         file_put_contents($this->target_ini_file, $php_ini_contents);
-        pake_echo_action('file+', $target_ini_file);
+        pake_echo_action('file+', $this->target_ini_file);
     }
 
     public function create_midgard_conf()
@@ -234,7 +234,7 @@ if (!\$node->create())
 
 PHP;
 
-        $target_file = $target_directory."/database_creator.php";
+        $target_file = $this->target_directory."/database_creator.php";
         file_put_contents($target_file, $database_creator_contents);
         pake_echo_action('file+', $target_file);
 
